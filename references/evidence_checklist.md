@@ -1,5 +1,11 @@
 # Evidence Checklist
 
+> **v2 edge-ordering note:** In the topology-first workflow, gather this
+> evidence *during Phase 2, walking modules along the dependency edges* drawn
+> in `topology.md` — not by random file reading. Read the single source of
+> truth before its synced copies. Sort the rows below by the complexity/value
+> of each entity as ranked in the topology's entity inventory.
+
 Minimum files / symbols that MUST be read during Phase 2 before writing any prose. Pick the repo-flavor row that best matches the target project; multiple rows may apply.
 
 ## Universal (always)

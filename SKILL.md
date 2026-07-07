@@ -1,67 +1,103 @@
 ---
 name: repo-doc-miner
-description: Mine an existing Git repository and generate three coordinated Markdown documents (developer guide, user guide, and from-beginner-to-expert tutorial) saved into the repository's docs folder. Use this skill when the user asks to "dig into / mine / analyze this project and produce documentation", "generate developer/user/tutorial docs for this repo", "write onboarding docs from the codebase", or any similar request where the deliverable is a coordinated doc set derived from reading the current repository.
+description: Mine an existing Git repository using a two-stage "topology-first → module-deep-dive" method and generate a coordinated Markdown doc set — a repo topology map (Mermaid) plus developer guide, user guide, and from-beginner-to-expert tutorial — saved into the repository's docs folder. Use this skill when the user asks to "dig into / mine / analyze this project and produce documentation", "generate a repo topology / architecture map and docs", "write onboarding docs from the codebase", or any similar request where the deliverable is a coordinated doc set derived from reading the current repository.
+version: 2.0.0
 ---
 
-# Repo Doc Miner
+# Repo Doc Miner (v2 — Topology-First)
 
 ## Overview
 
-Generate a coordinated set of three Markdown documents — **developer guide**, **user guide**, and **from-beginner-to-expert tutorial** — directly from a Git repository's source code, configuration, and examples. The output targets three distinct audiences (framework contributors, end users, and learners) and is grounded in concrete code paths, class/function names, and runnable examples from the repo, not generic knowledge.
+Mine a Git repository and produce a coordinated set of Markdown documents grounded in the actual code, configuration, and examples of the target repo. **v2 restructures the process around a two-stage method:**
+
+1. **Topology generation (Phase 1)** — first build a *structural map* of the repository: enumerate its **entity types** (packages, modules, agents, skills, commands, connectors, configs, scripts…) and extract the **dependency edges** between them (who references whom, what is a single source of truth vs. a synced copy). The topology map (Mermaid diagrams + an entity inventory table) is the **primary deliverable** and the backbone for everything else.
+2. **Module deep-dive (Phase 2)** — then read code *along the edges of the topology* rather than flat-file scanning. Modules are visited in priority order (highest complexity / highest value first), so the agent builds a correct mental model before descending into details.
+
+This ordering is what lets the skill scale to very large repositories: a topology collapses O(N) files into an O(entity-type) structural view, and the dependency edges tell you *which* files to read and *in what order* — e.g. you must understand the single source of truth before reading its synced copies, otherwise you mistake a copy for an independent implementation.
+
+The final deliverables are: `topology.md` (the map), `developer_guide.md`, `user_guide.md`, `tutorial.md`, and a `README.md` navigation hub.
 
 ## When to Use
 
 Trigger this skill when the user's request matches any of these patterns:
 
-- "挖掘当前项目/仓库，生成开发文档、用户文档和教程"
-- "Mine this repo and produce developer / user / tutorial docs"
-- "为这个项目写一套完整的文档（开发者 + 用户 + 入门到精通）"
+- "挖掘当前项目/仓库，生成拓扑图 + 开发文档、用户文档和教程"
+- "Mine this repo, draw an architecture / dependency topology, and produce docs"
+- "为这个项目写一套完整的文档（开发者 + 用户 + 入门到精通），先给我结构图"
 - "Generate onboarding documentation for this codebase, save into docs/"
-- Any request where (a) the primary input is the current repository, and (b) the required output is a multi-audience doc set written in Markdown.
+- Any request where (a) the primary input is the current repository, and (b) the required output is a multi-audience doc set (with or without an architecture map) written in Markdown.
 
 Do NOT trigger for: single-file API docs, README refresh only, translation tasks, or when the user already has a target doc framework (Sphinx/MkDocs site generation).
 
 ## Workflow
 
-Follow these six phases in order. Each phase lists what to do and which bundled resource to use.
+Follow these six phases in order. Phases 1–2 are the new topology-first core; Phases 3–6 reuse the grounded-writing machinery from v1.
 
-### Phase 1 · Scope & Output Location
+### Phase 0 · Scope & Output Location
 
 1. Determine the repository root (usually the workspace root).
 2. Choose the output directory. Default: `docs/guides/` under the repo root. If `docs/` does not exist, create `docs/guides/` anyway (it is a self-contained sub-folder and will not clash with Sphinx/MkDocs). Prefer an existing docs directory if it is clearly the convention of the repo.
-3. Confirm the three target files: `README.md` (navigation), `developer_guide.md`, `user_guide.md`, `tutorial.md`.
+3. Confirm the four target files: `topology.md` (map), `developer_guide.md`, `user_guide.md`, `tutorial.md`, and a `README.md` navigation hub.
 
-### Phase 2 · Repository Reconnaissance
+### Phase 1 · Topology Generation (core deliverable)
 
-Collect the minimum evidence required to write grounded docs. Issue parallel read-only tool calls wherever possible.
+This phase answers *"what is in this repo and how is it wired?"* before any prose is written.
 
-1. **Project metadata**: read `README.md`, `pyproject.toml` / `setup.py` / `package.json` / `Cargo.toml` / `go.mod`, `LICENSE`, `requirements*.txt`, `CITATION.cff`.
-2. **Top-level layout**: list the repository root and the main source package(s); note file counts per extension.
-3. **Public API surface**: read the top-level `__init__.py` (Python) / `index.ts` / `mod.rs` / `lib.rs` to learn what is exported. Record the `__all__` list and alias re-exports.
-4. **Core classes**: identify the main Model/Engine/Trainer/App class and read its key methods (constructor, compile/build, train/run, predict/serve, save/load).
-5. **Sub-packages**: for every important sub-package (data, nn, backend, optimizers, callbacks, geometry, icbc, utils …), open its `__init__.py` to harvest the public symbols; sample 1–2 representative implementations inside.
-6. **Configuration**: read any global config module (e.g. `config.py`, `settings.py`, `constants.py`).
-7. **Examples & tests**: list `examples/`, `tutorials/`, `samples/`, `tests/`, pick 3–6 representative scripts that cover forward / inverse / advanced usage, and read the shortest fully-runnable one in full.
-8. **Docs folder**: list existing RST/MD under `docs/` to avoid duplication and align style/vocabulary.
-9. **CI / Docker / packaging**: scan `.github/workflows/`, `Dockerfile`, `docker/`, `Makefile` for install and run commands that belong in the user guide.
+1. **Enumerate entity types.** Detect the repo flavor and list the entities it actually contains. Use `scripts/gen_topology.py` to produce a first draft automatically:
 
-Use `codebase_search` for open-ended "how / where / what" questions, and `search_content` (ripgrep) for exact symbol lookups. Batch independent reads in one tool-call block.
+   ```bash
+   python scripts/gen_topology.py <repo-root> --out <repo-root>/docs/guides/topology.md [--project-name "<DisplayName>"]
+   ```
+
+   The script detects, generically:
+   - Top-level directories as **modules**.
+   - Plugin-style entities: `SKILL.md` (skill), `agents/*.md` (agent), `commands/*.md` (command), `.mcp.json` (MCP connector), `agent.yaml` (managed agent).
+   - Language packages: `pyproject.toml` / `setup.py` / `package.json` / `Cargo.toml` / `go.mod`, and `__init__.py` / `index.ts` / `lib.rs` export surfaces.
+   - Tooling: `*.py` / `*.sh` scripts, `Makefile`, CI workflows.
+
+2. **Extract dependency edges.** For each pair of entities, determine whether one references the other. The script captures common edge kinds:
+   - CodeBuddy/Claude plugin links: `system.file:`, `from_plugin:`, `skills.path:`, `references:`.
+   - Cross-file references: `import ... from`, `require(...)`, relative-path includes in YAML/JSON/MD.
+   Classify each edge as **source → copy** (a single source of truth synced into copies) or **use/depend** (one entity consumes another). The "source → copy" edges are the most important — they reveal duplication that flat scanning would misinterpret.
+
+3. **Human-refine the draft.** Open the generated `topology.md` and verify the auto-detected edges against the real files (the script is heuristic; confirm the 2–3 most structurally important edges by reading the actual manifests). Edit the Mermaid graphs so they tell the true story of the repo. The refined `topology.md` is the **first deliverable** and the structural backbone for Phase 2.
+
+4. **Produce an entity inventory table** (count + location per entity type). This is the "map" the agent keeps open while deep-diving.
+
+### Phase 2 · Module Deep-Dive (evidence gathering, edge-ordered)
+
+Now read code *along the topology edges*, not at random.
+
+1. **Order by priority.** Sort modules by complexity/value (e.g. largest/most-central skill first; the single source of truth before its copies). Use the inventory table to pick a reading order.
+2. **Follow edges.** For each module, read the files the topology points to, then follow outbound edges to the next module. This guarantees the agent understands a capability at its source before meeting its copies/deployments.
+3. **Gather the evidence checklist.** Reuse `references/evidence_checklist.md`, but select rows by repo flavor and order them by the topology. Keep a scratch note (internal, not a deliverable) with: project metadata, exported symbols per module, main class signatures, chosen example files, and the confirmed dependency edges.
+4. **Mark gaps** with `> TODO(doc-miner): ...` when evidence is missing; never fabricate.
+
+For the concrete per-flavor "what to read" guidance, see `references/evidence_checklist.md` and the two-stage rationale in `references/topology_method.md`.
 
 ### Phase 3 · Content Plan (one-screen outline per document)
 
-Before writing prose, draft a one-screen outline for each of the three documents. Reuse the canonical outlines in `references/doc_outlines.md` and specialize their section titles with concrete names harvested in Phase 2 (package names, class names, config flags). Verify that:
+Before writing prose, draft a one-screen outline for each of the four documents. Reuse the canonical outlines in `references/doc_outlines.md` and specialize their section titles with concrete names harvested in Phase 2 (package names, class names, config flags, and — new in v2 — the topology node/edge names). Verify that:
 
-- The **developer guide** covers architecture, every top-level sub-package, runtime config, extension/contribution SOPs, and debugging tips.
+- The **topology** clearly shows the top-level structure, the key dependency edges, and the entity inventory.
+- The **developer guide** covers architecture, every top-level module, runtime config, extension/contribution SOPs, and debugging tips.
 - The **user guide** walks from installation to the most advanced user-facing feature, using API names that actually exist in the repo.
-- The **tutorial** has 8–12 progressive chapters, each anchored in at least one runnable example file from the repo.
+- The **tutorial** has 8–12 progressive chapters, each anchored in at least one real file from the repo.
 
 ### Phase 4 · Writing
 
-Use the templates under `assets/templates/` as the structural scaffold, then fill them with repo-specific content. Follow these rules:
+Use the templates under `assets/templates/` as the structural scaffold, then fill them with repo-specific content. Run the scaffolder first to lay down skeletons:
 
-- **Ground every claim in code**: when mentioning a function, class, or behavior, include the file path (relative to repo root) the first time it is introduced (e.g. `deepxde/model.py::Model.compile`). This lets future readers verify the claim.
+```bash
+python scripts/scaffold_docs.py <repo-root> --project-name "<DisplayName>" [--out docs/guides] [--force]
+```
+
+Then edit each file in place. Follow these rules:
+
+- **Ground every claim in code**: when mentioning a function, class, or behavior, include the file path (relative to repo root) the first time it is introduced (e.g. `deepxde/model.py::Model.compile`).
 - **Prefer real code snippets** taken from `examples/` or tests; condense to ≤ ~30 lines. Preserve the original import style and function signatures; do not invent APIs.
-- **Cross-link the three documents**: the tutorial references sections in the user guide; the developer guide references the user guide for API usage; `README.md` links all three.
+- **Lead with the topology**: `topology.md` is written first and referenced by the other three documents; the developer guide can embed or link the Mermaid diagrams rather than re-drawing them.
+- **Cross-link the four documents**: the tutorial references sections in the user guide; the developer guide references the user guide for API usage; `README.md` links all four.
 - **Match the repo's host language**: if the existing `docs/` content is primarily Chinese, write in Chinese; primarily English, write in English; bilingual repositories default to the language of the user's current query.
 - **Keep each file self-contained**: duplicate a minimum amount of glossary/context so any one file can be opened first.
 - **Mark unresolved gaps explicitly** with `> TODO(doc-miner): ...` lines when evidence is insufficient; never fabricate behavior.
@@ -72,51 +108,51 @@ Before reporting completion:
 
 1. Spot-check 5 random code snippets against their source files (open the referenced path, compare signatures).
 2. Run `rg "TODO\(doc-miner\)"` to surface unresolved gaps; either resolve them or list them in the final summary.
-3. Ensure every sub-package mentioned in the developer guide actually exists (`search_file`).
-4. Confirm the three files render correctly as Markdown (headings monotonic, code fences closed, relative links valid).
+3. Ensure every module mentioned in the developer guide actually exists (`search_file`).
+4. Confirm the topology's dependency edges are real by opening at least the 2–3 most important manifests.
+5. Confirm the four files render correctly as Markdown (headings monotonic, code fences closed, relative links valid, Mermaid blocks well-formed).
 
 ### Phase 6 · Handover
 
 Produce a short final summary containing:
 
-- Absolute paths of the four generated files.
+- Absolute paths of the five generated files (incl. `topology.md`).
 - Line-count per file.
-- A coverage bullet list (which sub-packages / examples made it in).
+- A coverage bullet list (which modules / examples made it in).
 - Any `TODO(doc-miner)` items the user still needs to fill.
+- Note: `topology.md` is incrementally updatable — re-running `scripts/gen_topology.py` later diffs structural changes as the repo evolves.
 
 ## Resources
 
+### scripts/
+
+- `scripts/gen_topology.py` — **new in v2.** Scans a repo, detects entity types and dependency edges, and writes a Mermaid-backed `topology.md` (structural graph + dependency-edge graph + entity inventory + per-module deep-dive scaffold). Heuristic but safe on arbitrary repos. Run it at the start of Phase 1.
+- `scripts/scaffold_docs.py` — creates `<repo>/docs/guides/` and materializes the four document templates from `assets/templates/` with their `{{PROJECT_NAME}}` placeholder substituted. Run at the start of Phase 4.
+
 ### assets/templates/
 
-Three Markdown skeletons carrying a fixed section schema. Use them as the literal starting point for each file; do **not** rewrite them from scratch. Replace every `{{PLACEHOLDER}}` with repo-specific content harvested in Phase 2.
+Markdown skeletons carrying a fixed section schema. Use them as the literal starting point for each file; do **not** rewrite them from scratch. Replace every `{{PLACEHOLDER}}` with repo-specific content harvested in Phase 2.
 
-- `assets/templates/developer_guide.md` — 15-section schema (overview → architecture → sub-package tours → extension SOPs → debugging).
-- `assets/templates/user_guide.md` — 20-section schema (install → backend/runtime config → geometry/data/network equivalents → training loop → advanced features → FAQ → minimal runnable examples).
+- `assets/templates/topology.md` — **new in v2.** The architecture-map scaffold (Mermaid blocks + inventory table + per-module sections).
+- `assets/templates/developer_guide.md` — 15-section schema (overview → architecture → module tours → extension SOPs → debugging).
+- `assets/templates/user_guide.md` — 20-section schema (install → runtime config → core objects → main loop → advanced features → FAQ → minimal runnable examples).
 - `assets/templates/tutorial.md` — 10-chapter "from beginner to expert" schema with slots for real example file paths.
-- `assets/templates/README.md` — navigation hub that indexes the three documents.
+- `assets/templates/README.md` — navigation hub that indexes the four documents.
 
 ### references/
 
 Loaded into context on demand.
 
+- `references/topology_method.md` — **new in v2.** The two-stage methodology: why topology-first scales to large repos, how to detect entity types and edges, and a reusable process you can apply to any repository.
 - `references/doc_outlines.md` — canonical section-by-section outlines, with guidance on what each section must contain and how to source the evidence.
-- `references/evidence_checklist.md` — the minimum set of files and symbols to read during Phase 2, grouped by repo flavor (Python DL library, Python CLI, Node web app, Rust crate, Go service).
+- `references/evidence_checklist.md` — the minimum set of files and symbols to read during Phase 2, grouped by repo flavor (Python DL library, Python CLI, Node web app, Rust crate, Go service). Updated to be edge-ordered.
 - `references/writing_style.md` — writing-style conventions (tone, bilingual rules, code-citation format, TODO markers).
-
-### scripts/
-
-- `scripts/scaffold_docs.py` — creates `<repo>/docs/guides/` and materializes the four templates from `assets/templates/` with their `{{PROJECT_NAME}}` placeholder substituted. Usage:
-
-  ```bash
-  python scripts/scaffold_docs.py <repo-root> --project-name "<DisplayName>" [--out docs/guides]
-  ```
-
-  Run this at the very beginning of Phase 4 to lay down the skeleton; then edit each file in place.
 
 ## Failure Modes to Avoid
 
 - Writing generic docs that could apply to any library — **always include at least one concrete class name, file path, or example per section**.
 - Copying long code blocks verbatim (> 50 lines). Condense and cite the path instead.
-- Skipping Phase 2 and guessing the API. If a fact cannot be grounded, mark `TODO(doc-miner)` and continue.
+- **Skipping Phase 1 and guessing the architecture.** If you cannot draw the topology, you do not understand the repo — stop and read the manifests the script flagged.
+- Mistaking a synced copy for an independent implementation because you read it before its source. Always follow `source → copy` edges.
 - Clobbering existing `docs/` content. Always write into a dedicated sub-folder (`docs/guides/` by default).
-- Forgetting to produce the navigation `README.md`; without it the three documents feel disconnected.
+- Forgetting to produce the navigation `README.md`; without it the four documents feel disconnected.

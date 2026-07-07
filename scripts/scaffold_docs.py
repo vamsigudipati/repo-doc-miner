@@ -30,6 +30,7 @@ import sys
 from pathlib import Path
 
 TEMPLATE_FILES = (
+    "topology.md",
     "README.md",
     "developer_guide.md",
     "user_guide.md",

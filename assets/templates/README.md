@@ -1,10 +1,11 @@
 # {{PROJECT_NAME}} 指南中心 / Guide Hub
 
-This folder contains three coordinated documents derived from mining the {{PROJECT_NAME}} source tree:
+This folder contains four coordinated documents derived from mining the {{PROJECT_NAME}} source tree using the topology-first workflow:
 
 | File | Audience | Contents |
 | --- | --- | --- |
-| [`developer_guide.md`](./developer_guide.md) | Framework developers / contributors | Architecture, sub-package tours, extension SOPs, debugging tips. |
+| [`topology.md`](./topology.md) | Everyone (start here) | Structural map (Mermaid) + entity inventory + dependency edges. The backbone for the other docs. |
+| [`developer_guide.md`](./developer_guide.md) | Framework developers / contributors | Architecture, module tours, extension SOPs, debugging tips. |
 | [`user_guide.md`](./user_guide.md) | End users / applied engineers | Installation, core API, typical workflows, FAQ. |
 | [`tutorial.md`](./tutorial.md) | Learners at any level | 10-chapter "from beginner to expert" walkthrough grounded in `examples/`. |
 
