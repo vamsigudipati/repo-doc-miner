@@ -63,7 +63,6 @@ The agent auto-discovers the skill via `SKILL.md`.
 
 Once installed, trigger the skill with a request like:
 
-- "挖掘当前项目，先给我拓扑图，再生成开发者文档、用户文档和从入门到精通教程"
 - "Mine this repo, draw an architecture topology, and produce docs under `docs/guides/`"
 
 The skill will:

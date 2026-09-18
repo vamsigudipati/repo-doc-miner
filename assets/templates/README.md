@@ -1,4 +1,4 @@
-# {{PROJECT_NAME}} 指南中心 / Guide Hub
+# {{PROJECT_NAME}} Guide Hub
 
 This folder contains four coordinated documents derived from mining the {{PROJECT_NAME}} source tree using the topology-first workflow:
 

@@ -21,9 +21,7 @@ The final deliverables are: `topology.md` (the map), `developer_guide.md`, `user
 
 Trigger this skill when the user's request matches any of these patterns:
 
-- "挖掘当前项目/仓库，生成拓扑图 + 开发文档、用户文档和教程"
 - "Mine this repo, draw an architecture / dependency topology, and produce docs"
-- "为这个项目写一套完整的文档（开发者 + 用户 + 入门到精通），先给我结构图"
 - "Generate onboarding documentation for this codebase, save into docs/"
 - Any request where (a) the primary input is the current repository, and (b) the required output is a multi-audience doc set (with or without an architecture map) written in Markdown.
 
