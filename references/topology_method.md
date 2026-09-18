@@ -78,6 +78,7 @@ Phase 2  for node in topo.nodes (sorted by complexity):
 Phase 3  draft outlines (references/doc_outlines.md)
 Phase 4  scaffold_docs.py + fill templates + topology.md
 Phase 5  validate snippets, edges, links
+         → apply references/todo_conventions.md to every remaining TODO(doc-miner) marker
 Phase 6  handover (5 files, line counts, coverage, TODOs)
 ```
 

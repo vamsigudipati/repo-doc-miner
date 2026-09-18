@@ -2,11 +2,17 @@
 
 ## Language
 
-- Match the primary language of the repository's existing `docs/`:
-  - If existing docs are in English → write in English.
-  - If existing docs are in Chinese → write in Chinese.
-  - If bilingual / mixed → default to the language of the user's latest query.
-- Within a single document, do not mix languages mid-paragraph. Code comments inside snippets may remain in their original language.
+- All generated documentation is English only, regardless of the source
+  repository's own language. If repo-native docs (README, code comments,
+  in-repo guides) are in another language, translate the substance into
+  English — never mirror the source language, and never produce bilingual
+  headings or dual-language text blocks.
+- Within a single document, only English may appear outside of: (a) fenced
+  code blocks reproducing actual source code verbatim, and (b) a person's
+  name or a proper noun with no English form.
+- Before handover (Phase 5), scan every generated file for non-ASCII/CJK
+  characters outside code blocks; anything found must be translated or
+  removed.
 
 ## Tone
 
@@ -44,6 +50,19 @@ Examples:
 - Keep width ≤ 72 characters.
 - Do not use Unicode box-drawing characters heavier than `┌ ┐ └ ┘ ─ │ ├ ┤ ┬ ┴ ┼ ▶ ◀ ▲ ▼`.
 
+## Mermaid diagrams
+
+- `graph TD` for pipelines / data flow; `sequenceDiagram` for time-ordered
+  multi-actor interaction. See doc_outlines.md's "Diagram placement" rule
+  for when each is required.
+- Node/actor labels match the entity names used in topology.md, so a
+  reader can cross-reference between documents.
+- Every diagram must be grounded in code actually read — same evidence
+  rule as prose; no fabricated steps or actors.
+- Prefer Mermaid over ASCII once a diagram would need more than ~5 nodes or
+  any branching — ASCII stays acceptable only for a small, purely linear
+  2–4-box diagram.
+
 ## TODO markers
 
 Use `> TODO(doc-miner): <short description>` as a blockquote when a piece of evidence was not found.
@@ -70,3 +89,7 @@ Rules:
 - Advertisements for the project ("the best PINN library").
 - Historical anecdotes unless they explain a current design decision.
 - Redundant re-statement of content already in the README (link instead).
+  This explicitly includes the canonical citation: state it once, in full,
+  in README.md's Citation section; every other document links to that
+  section (e.g. "see README.md § Citation") instead of repeating the full
+  citation block.

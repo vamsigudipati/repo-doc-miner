@@ -2,6 +2,22 @@
 
 Authoritative section skeletons for the three documents. Specialize every bracketed slot with concrete names harvested in Phase 2 of the workflow. Section order is fixed; numbering may be adjusted if a phase is clearly inapplicable (mark the skip reason in the final handover summary).
 
+## Diagram placement (applies throughout)
+
+- Any section narrating 3 or more sequential stages (a pipeline, a data
+  flow, a multi-step setup) gets a Mermaid `graph TD` flowchart, not a
+  prose arrow-chain or ASCII diagram.
+- Any section narrating message/data exchange between 2+ distinct actors
+  over time (an RL agent/environment loop, an MPI exchange, a training/
+  evaluation handoff, a client/server round trip) gets a Mermaid
+  `sequenceDiagram`.
+- This applies at sub-component level, not only to the top-level
+  architecture overview — a single complex module or script can warrant
+  its own diagram in the section that introduces it.
+- Where topology.md's "Detected Pipelines" section (see gen_topology.py
+  §11a) already covers a chain, reuse that diagram (or a lightly adapted
+  copy) instead of hand-drawing a duplicate from scratch.
+
 ---
 
 ## developer_guide.md (15 sections)
